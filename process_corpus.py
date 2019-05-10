@@ -13,19 +13,16 @@ class Struct:
     self.__dict__.update(entries)
 
 def open_utf8(path):
-  # f = codecs.open(path,"r", "utf-8")
-  # chaine = f.read()
-  # f.close()
   with codecs.open(path, "r", "utf-8") as f:
       chaine = f.read()
   return chaine
 
-def  write_output(output_dic, options):
+# write result
+def write_output(output_dic, options):
   output_path = "%s.results"%options.corpus
   output_json = json.dumps(output_dic, sort_keys=True, indent=2)
-  wfi = open(output_path, "w")
-  wfi.write(output_json)
-  wfi.close()
+  with open(output_path, "w") as wfi:
+    wfi.write(output_json)
   return output_path
 
 def prepare_infos(infos, options):
@@ -37,33 +34,71 @@ def prepare_infos(infos, options):
   infos["showrelevant"] = options.showrelevant
   return infos
 
-def  start_detection(options):
+# output list of missing docs
+def list_docs_not_found(missing_docs): 
+    if len(missing_docs) > 0:
+        path = "tmp/files_not_found"
+        print "--\n %s files not found\n"%str(len(missing_docs))
+        print "list here: %s\n--"%(path)
+        write_utf8(path, "\n".join(missing_docs))
+
+def skip_missing_doc(is_skipped, abs_path, doc_path):
+    if not is_skipped:
+        print "Not found: ", doc_path
+        print "Not found either: ",  abs_path + doc_path
+        print "-> the next not found files will be ignored"
+        d = raw_input("Press enter to continue")
+        return True
+    return False
+
+# look for doc - if missing, put in list to print later
+def look_for_doc(doc_path, corpus_path, missing_doc):
+    if not os.path.exists(doc_path):
+        # check for absolute path also
+        if not os.path.exists(os.path.dirname(os.path.abspath(corpus_path)) + "/" + doc_path):
+            missing_doc.append(doc_path)
+            return False
+
+# return absolute path to document if abs_path exists, otherwise doc_path remain
+def check_abs_path(doc_path, corpus_path):
+    if os.path.abspath(corpus_path):
+        doc_path = os.path.dirname(os.path.abspath(corpus_path)) + "/" + doc_path
+    return doc_path
+
+def start_detection(options):
   corpus_to_process = json.load(open(options.corpus))
   cpt_proc, cpt_rel = 0, 0
   output_dic, resources = {}, {}
-  not_found = []
-  has_not_found = False
+  missing_docs = []
+  is_found = False
   abs_path = ""
+  
   print "\n Processing %s documents\n"%str(len(corpus_to_process))
   
-  for id_file, infos in corpus_to_process.iteritems():
+  for id_file, infos in corpus_to_process.iteritems(): 
+    infos["document_path"] = check_abs_path(infos["document_path"], options.corpus)
+    
     if not os.path.exists(infos["document_path"]):
       abs_path = os.path.dirname(os.path.abspath(options.corpus))+"/"
       if not os.path.exists(abs_path + infos["document_path"]):
-        not_found.append(infos["document_path"])
-        if not has_not_found:
-          print "Not found : ",infos["document_path"]
-          print "Not found either: ",abs_path+infos["document_path"]
-          print "  -> the next not found files will be ignored"
-          d = raw_input("Press enter to continue")
-          has_not_found = True
+        missing_docs.append(infos["document_path"])
+        is_found = skip_missing_doc(is_found, abs_path, infos["document_path"])
+        # ???????
+        #if not is_found:
+        #  print "Not found : ",infos["document_path"]
+        #  print "Not found either: ",abs_path+infos["document_path"]
+        #  print "  -> the next not found files will be ignored"
+        #  d = raw_input("Press enter to continue")
+        #  is_found = True
+        # ???????
         continue
     
     cpt_proc += 1
     
-    if abs_path != "":
-      infos["document_path"] = abs_path + infos["document_path"]
+    #if abs_path != "":
+    #  infos["document_path"] = abs_path + infos["document_path"]
     
+
     output_dic[id_file] = infos
     
     if "annotations" in output_dic[id_file]:
@@ -76,10 +111,10 @@ def  start_detection(options):
 
     #lg = infos["language"] 
     if infos["language"]  not in resources:
-      resources[infos["language"] = get_ressource(infos["language"], options)
+      resources[infos["language"]] = get_ressource(infos["language"], options)
     
     o = Struct(**infos)
-    results = process(o, resources[infos["language"])
+    results = process(o, resources[infos["language"]])
     
     if o.verbose or o.showrelevant:
       process_results(results, o)
@@ -94,12 +129,9 @@ def  start_detection(options):
       print "%s documents processed, %s relevant"%(str(cpt_proc), str(cpt_rel))
     
     output_path = write_output(output_dic, options)
-  
-  if len(not_found) > 0:
-    path_not_found = "tmp/files_not_found"
-    print "--\n %s files not found\n"%str(len(not_found))
-    print " list here : %s\n--"%(path_not_found)
-    write_utf8(path_not_found, "\n".join(not_found))
+
+  list_docs_not_found(missing_docs) 
+
   return cpt_proc, cpt_rel, output_path
 
 if __name__=="__main__":
