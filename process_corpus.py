@@ -9,30 +9,31 @@ from tools import *
 from daniel import get_ressource, process_results
 
 class Struct:
-  def __init__(self, **entries):
-    self.__dict__.update(entries)
+    def __init__(self, **entries):
+        self.__dict__.update(entries)
 
 def open_utf8(path):
-  with codecs.open(path, "r", "utf-8") as f:
-      chaine = f.read()
-  return chaine
+    with codecs.open(path, "r", "utf-8") as f:
+        chaine = f.read()
+    return chaine
 
 # write result
 def write_output(output_dic, corpus_path):
-  output_path = "%s.results"%corpus_path
-  output_json = json.dumps(output_dic, sort_keys=True, indent=2)
-  with open(output_path, "w") as wfi:
-    wfi.write(output_json)
-  return output_path
+    output_path = "%s.results"%corpus_path
+    output_json = json.dumps(output_dic, sort_keys=True, indent=2)
+    with open(output_path, "w") as wfi:
+        wfi.write(output_json)
+    return output_path
 
+# TODO: look for better/nicer solution (if any)
 def prepare_infos(infos, options):
-  infos["is_clean"] = options.is_clean
-  infos["ratio"] = options.ratio
-  infos["verbose"] = options.verbose
-  infos["debug"] = options.debug
-  infos["name_out"] = options.name_out
-  infos["showrelevant"] = options.showrelevant
-  return infos
+    infos["is_clean"] = options.is_clean
+    infos["ratio"] = options.ratio
+    infos["verbose"] = options.verbose
+    infos["debug"] = options.debug
+    infos["name_out"] = options.name_out
+    infos["showrelevant"] = options.showrelevant
+    return infos
 
 # output list of missing docs
 def list_docs_not_found(missing_docs): 
