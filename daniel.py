@@ -13,11 +13,13 @@ import os
 from tools import *
 import json
 
+# ???
 def get_normalized_pos(ss, text):
-  s = re.escape(ss)
-  l_dist = [m.start() for m in re.finditer(s, text)]
+  # s = re.escape(ss)
+  l_dist = [m.start() for m in re.finditer(re.escape(ss), text)]
   l_dist = [min(x, len(text)-x) for x in l_dist]
   return [float(x)/len(text) for x in l_dist]
+# ???
 
 def exploit_rstr(r,rstr, set_id_text):
   desc = []
@@ -47,10 +49,9 @@ def get_score(ratio, dist):
   if dist[0]==1:
     return ratio
   elif dist[1]<=1:
-    score = pow(ratio, 1+dist[0]*dist[1])
+    return pow(ratio, 1+dist[0]*dist[1])
   else:
-    score = pow(ratio, 1+dist[0]*math.log(dist[1]))
-  return score
+    return pow(ratio, 1+dist[0]*math.log(dist[1]))
 
 def filter_desc(desc, l_rsc, loc=False):
   out = []
