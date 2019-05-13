@@ -18,8 +18,8 @@ def open_utf8(path):
   return chaine
 
 # write result
-def write_output(output_dic, options):
-  output_path = "%s.results"%options.corpus
+def write_output(output_dic, corpus_path):
+  output_path = "%s.results"%corpus_path
   output_json = json.dumps(output_dic, sort_keys=True, indent=2)
   with open(output_path, "w") as wfi:
     wfi.write(output_json)
@@ -51,7 +51,7 @@ def skip_missing_doc(is_skipped, doc_path):
     return False
 
 # look for doc - if missing, put in list to print later
-def look_for_doc(doc_path, corpus_path, missing_doc):
+def look_for_doc(doc_path, missing_doc):
     if not os.path.exists(doc_path):
         missing_doc.append(doc_path)
         return False
@@ -63,17 +63,24 @@ def check_abs_path(doc_path, corpus_path):
         doc_path = os.path.dirname(os.path.abspath(corpus_path)) + "/" + doc_path
     return doc_path
 
+def info_process(infos, resources):
+    return process(Struct(**infos), resources[infos["language"]])
+    
+def verbose_result(infos, results):
+    if Struct(**infos).verbose or Struct(**infos).showrelevant:
+        process_results(results, Struct(**infos))
+
 def start_detection(options):
-  corpus_to_process = json.load(open(options.corpus))
-  cpt_proc, cpt_rel = 0, 0
-  output_dic, resources = {}, {}
-  missing_docs = []
-  is_skipped = False
+    corpus_to_process = json.load(open(options.corpus))
+    cpt_proc, cpt_rel = 0, 0
+    output_dic, resources = {}, {}
+    missing_docs = []
+    is_skipped = False
   
-  print "\n Processing %s documents\n"%str(len(corpus_to_process))
+    print "\n Processing %s documents\n"%str(len(corpus_to_process))
   
-  for id_file, infos in corpus_to_process.iteritems(): 
-    infos["document_path"] = check_abs_path(infos["document_path"], options.corpus)
+    for id_file, infos in corpus_to_process.iteritems(): 
+        infos["document_path"] = check_abs_path(infos["document_path"], options.corpus)
 
     # seriously though, I don't even know why this part exists and why it is writen like this 
     # so confusing
@@ -91,46 +98,52 @@ def start_detection(options):
     #      has_not_found = True
     # ???????????????????????????
 
-    if not look_for_doc(infos["document_path"], options.corpus, missing_doc):
-        is_skipped = skip_missing_doc(is_skipped, infos["document_path"])
-        continue
+        if not look_for_doc(infos["document_path"], missing_docs):
+            is_skipped = skip_missing_doc(is_skipped, infos["document_path"])
+            continue
     
-    cpt_proc += 1
+        cpt_proc += 1
 
-    output_dic[id_file] = infos
+        output_dic[id_file] = infos
     
-    if "annotations" in output_dic[id_file]:
-      del output_dic[id_file]["annotations"]# for evaluation
+        if "annotations" in output_dic[id_file]:
+            del output_dic[id_file]["annotations"]# for evaluation
     
-    infos = prepare_infos(infos, options)
+        infos = prepare_infos(infos, options)
     
-    if options.verbose:
-      print infos
+        if options.verbose:
+            print infos
 
     #lg = infos["language"] 
-    if infos["language"]  not in resources:
-      resources[infos["language"]] = get_ressource(infos["language"], options)
+        if infos["language"]  not in resources:
+            resources[infos["language"]] = get_ressource(infos["language"], options)
     
-    o = Struct(**infos)
-    results = process(o, resources[infos["language"]])
+    #o = Struct(**infos)
+    #results = process(o, resources[infos["language"]])
+    #
+    #if o.verbose or o.showrelevant:
+    #  process_results(results, o)
     
-    if o.verbose or o.showrelevant:
-      process_results(results, o)
-    
-    if "dis_infos" in results:
-      cpt_rel += 1
-    
-    output_dic[id_file]["annotations"] = results["events"]
-    output_dic[id_file]["is_clean"] = str(output_dic[id_file]["is_clean"])
-    
-    if cpt_proc%100 == 0:
-      print "%s documents processed, %s relevant"%(str(cpt_proc), str(cpt_rel))
-    
-    output_path = write_output(output_dic, options)
+        results = info_process(infos, resources)
+        verbose_result(infos, results)
 
-  list_docs_not_found(missing_docs) 
+        if "dis_infos" in results:
+            cpt_rel += 1
+    
+        output_dic[id_file]["annotations"] = results["events"]
+        
+        # ???????
+        output_dic[id_file]["is_clean"] = str(output_dic[id_file]["is_clean"])
+        # ???????
 
-  return cpt_proc, cpt_rel, output_path
+        if cpt_proc%100 == 0:
+            print "%s documents processed, %s relevant"%(str(cpt_proc), str(cpt_rel))
+    
+        output_path = write_output(output_dic, options.corpus)
+
+    list_docs_not_found(missing_docs) 
+
+    return cpt_proc, cpt_rel, output_path
 
 if __name__=="__main__":
   start = time.clock()
