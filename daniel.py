@@ -15,76 +15,104 @@ import json
 
 # ???
 def get_normalized_pos(ss, text):
-  # s = re.escape(ss)
-  l_dist = [m.start() for m in re.finditer(re.escape(ss), text)]
-  l_dist = [min(x, len(text)-x) for x in l_dist]
-  return [float(x)/len(text) for x in l_dist]
+    # s = re.escape(ss)
+    l_dist = [m.start() for m in re.finditer(re.escape(ss), text)]
+    l_dist = [min(x, len(text)-x) for x in l_dist]
+    return [float(x)/len(text) for x in l_dist]
 # ???
 
+# if paragraph structuration is weak
+def check_weak_struct(id_length):
+    return id_length == 1
+
+def check_inter(inter, s_occur):
+    condition1 = len(inter) > 1
+    condition2 = len(s_occur) > len(inter)
+    return (condition1 and condition2)
+
+def check_weak_and_repeat(weak_struct, s_occur):
+    condition = 0 in s_occur
+    return (weak_struct and condition)
+
 def exploit_rstr(r,rstr, set_id_text):
-  desc = []
-  weak_struct = len(set_id_text)==1#if paragraph structuration is weak
-  for (offset_end, nb), (l, start_plage) in r.iteritems():
-    ss = rstr.global_suffix[offset_end-l:offset_end]
-    s_occur = set()
-    for o in xrange(start_plage, start_plage+nb) :
-      id_str = rstr.idxString[rstr.res[o]]
-      s_occur.add(id_str)
-    inter = s_occur.intersection(set_id_text)
-    has_inter = len(inter)>1 and len(s_occur)>len(inter)
-    weak_and_repeat=(weak_struct and 0 in s_occur)#needs to be in 1st paragraph
-    if has_inter or weak_and_repeat: 
-      NE_ids=[x-len(set_id_text) for x in s_occur.difference(set_id_text)]
-      if len(inter)>1:
-        l_dist = [min(pos, len(set_id_text)-pos-1) for pos in inter]
-      else:
-        l_dist = get_normalized_pos(ss, rstr.global_suffix)
-      l_dist = [round(x, 5) for x in l_dist]
-      desc.append([ss, NE_ids, sorted(l_dist)])
-  return desc
+    desc = []
+    weak_struct = check_weak_struct(len(set_id_text))
+  
+    for (offset_end, nb), (l, start_plage) in r.iteritems():
+        ss = rstr.global_suffix[offset_end-l:offset_end]
+        s_occur = set()
+    
+        for o in xrange(start_plage, start_plage+nb) :
+            # id_str = rstr.idxString[rstr.res[o]]
+            s_occur.add(rstr.idxString[rstr.res[o]])
+    
+            inter = s_occur.intersection(set_id_text)
+
+            has_inter = check_inter(inter, s_occur)
+            weak_and_repeat = check_weak_and_repeat(weak_struct, s_occur) #needs to be in 1st paragraph
+    
+        # ????
+        if has_inter or weak_and_repeat: 
+            NE_ids=[x-len(set_id_text) for x in s_occur.difference(set_id_text)]
+            if len(inter)>1:
+                l_dist = [min(pos, len(set_id_text)-pos-1) for pos in inter]
+            else:
+                l_dist = get_normalized_pos(ss, rstr.global_suffix)
+            l_dist = [round(x, 5) for x in l_dist]
+            desc.append([ss, NE_ids, sorted(l_dist)])
+        # ????
+
+    return desc
 
 def get_score(ratio, dist):
-  if ratio ==1:
-    ratio = 0.99
-  if dist[0]==1:
-    return ratio
-  elif dist[1]<=1:
-    return pow(ratio, 1+dist[0]*dist[1])
-  else:
-    return pow(ratio, 1+dist[0]*math.log(dist[1]))
+    if ratio ==1:
+        ratio = 0.99
+    if dist[0]==1:
+        return ratio
+    elif dist[1]<=1:
+        return pow(ratio, 1+dist[0]*dist[1])
+    else:
+        return pow(ratio, 1+dist[0]*math.log(dist[1]))
 
 def filter_desc(desc, l_rsc, loc=False):
-  out = []
-  for ss, dis_list, distances in desc:
-    for id_dis in dis_list:
-      entity_name = l_rsc[id_dis].decode("utf-8")
-      ratio = float(len(ss))/len(entity_name)
-      if ss[0].lower()!=entity_name[0].lower():
-        if loc==True:
-          #for country names the first character should not change
-          ratio = max(0, ratio-0.2)#penalty
-        else:
-          if len(entity_name)<6 and ratio<1:
-            ratio = max(0, ratio-0.1)#penalty
-      score = get_score(ratio, distances)
-      out.append([score, entity_name, ss, distances])
-  return sorted(out,reverse=True)
+    out = []
+    for ss, dis_list, distances in desc:
+        for id_dis in dis_list:
+            entity_name = l_rsc[id_dis].decode("utf-8")
+            ratio = float(len(ss))/len(entity_name)
+            
+            if ss[0].lower()!=entity_name[0].lower():
+                if loc==True:
+                    #for country names the first character should not change
+                    ratio = max(0, ratio-0.2)#penalty
+                else:
+                    if len(entity_name)<6 and ratio<1:
+                        ratio = max(0, ratio-0.1)#penalty
+            
+            score = get_score(ratio, distances)
+            out.append([score, entity_name, ss, distances])
+    
+    return sorted(out,reverse=True)
 
 def get_desc(string, rsc, loc = False):
-  set_id_text = set()
-  rstr = Rstr_max()
-  cpt = 0
-  l_rsc = rsc.keys()
-  for s in string:
-    rstr.add_str(s)
-    set_id_text.add(cpt)
-    cpt+=1
-  for r in l_rsc:
-    rstr.add_str(r.decode("utf-8"))
-  r = rstr.go()
-  desc = exploit_rstr(r,rstr, set_id_text)
-  res = filter_desc(desc, l_rsc, loc)
-  return res 
+    set_id_text = set()
+    rstr = Rstr_max()
+    cpt = 0
+    l_rsc = rsc.keys()
+    
+    for s in string:
+        rstr.add_str(s)
+        set_id_text.add(cpt)
+        cpt+=1
+    
+    for r in l_rsc:
+        rstr.add_str(r.decode("utf-8"))
+    
+    r = rstr.go() # ???? should name different perhap
+    desc = exploit_rstr(r,rstr, set_id_text)
+    # res = filter_desc(desc, l_rsc, loc)
+    
+    return filter_desc(desc, l_rsc, loc)
 
 def zoning(string, options):
   z = re.split("<p>", string)
