@@ -147,25 +147,25 @@ def start_detection(options):
     return cpt_proc, cpt_rel, output_path
 
 if __name__=="__main__":
-  start = time.clock()
-  options = get_args()
-  print options
-  if options.corpus==None:
-    print "Please specify a Json file (-c), see README.txt for more informations about the format. To use the default example :\n -c docs/Indonesian_GL.json"
-    exit()
-  else:
-    options.document_path ="None"
-  try:
-    os.makedirs("tmp")
-  except:
-    pass
-  cpt_doc, cpt_rel, output_path = start_detection(options)
-  end = time.clock()
-  print "%s docs proc. in %s seconds"%(str(cpt_doc), str(round(end-start, 4)))
-  print "  %s relevant documents"%(str(cpt_rel))
-  print "  Results written in %s"%output_path
-  if options.evaluate:
-    print "\nEvaluation\n :"
-    cmd = "python evaluate.py %s %s"%(options.corpus, output_path)
-    print "-->",cmd
-    os.system(cmd)
+    start = time.clock()
+    options = get_args()
+    print options
+    if options.corpus==None:
+        print "Please specify a Json file (-c), see README.txt for more informations about the format. To use the default example :\n -c docs/Indonesian_GL.json"
+        exit()
+    else:
+        options.document_path ="None"
+    try:
+        os.makedirs("tmp")
+    except:
+        pass
+    cpt_doc, cpt_rel, output_path = start_detection(options)
+    end = time.clock()
+    print "%s docs proc. in %s seconds"%(str(cpt_doc), str(round(end-start, 4)))
+    print "  %s relevant documents"%(str(cpt_rel))
+    print "  Results written in %s"%output_path
+    if options.evaluate:
+        print "\nEvaluation\n :"
+        cmd = "python evaluate.py %s %s"%(options.corpus, output_path)
+        print "-->",cmd
+        os.system(cmd)
