@@ -8,6 +8,8 @@ import codecs
 from tools import *
 from daniel import get_ressource, process_results
 
+# TODO: write test for these functions
+
 class Struct:
     def __init__(self, **entries):
         self.__dict__.update(entries)
@@ -115,15 +117,8 @@ def start_detection(options):
         if options.verbose:
             print infos
 
-    #lg = infos["language"] 
         if infos["language"]  not in resources:
             resources[infos["language"]] = get_ressource(infos["language"], options)
-    
-    #o = Struct(**infos)
-    #results = process(o, resources[infos["language"]])
-    #
-    #if o.verbose or o.showrelevant:
-    #  process_results(results, o)
     
         results = info_process(infos, resources)
         verbose_result(infos, results)
@@ -132,10 +127,7 @@ def start_detection(options):
             cpt_rel += 1
     
         output_dic[id_file]["annotations"] = results["events"]
-        
-        # ???????
         output_dic[id_file]["is_clean"] = str(output_dic[id_file]["is_clean"])
-        # ???????
 
         if cpt_proc%100 == 0:
             print "%s documents processed, %s relevant"%(str(cpt_proc), str(cpt_rel))
