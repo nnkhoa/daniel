@@ -27,15 +27,11 @@ def write_output(output_dic, corpus_path):
         wfi.write(output_json)
     return output_path
 
-# TODO: look for better/nicer solution (if any)
 def prepare_infos(infos, options):
-    infos["is_clean"] = options.is_clean
-    infos["ratio"] = options.ratio
-    infos["verbose"] = options.verbose
-    infos["debug"] = options.debug
-    infos["name_out"] = options.name_out
-    infos["showrelevant"] = options.showrelevant
-    return infos
+    attr = ["is_clean","ratio","verbose","debug","name_out","showrelevant"]
+    for name in attr:
+        infos[name] = getattr(options, name)
+    return infos 
 
 # output list of missing docs
 def list_docs_not_found(missing_docs): 
@@ -44,14 +40,6 @@ def list_docs_not_found(missing_docs):
         print "--\n %s files not found\n"%str(len(missing_docs))
         print "list here: %s\n--"%(path)
         write_utf8(path, "\n".join(missing_docs))
-
-def skip_missing_doc(is_skipped, doc_path):
-    if not is_skipped:
-        print "Not found: ", doc_path
-        print "-> the next not found files will be ignored"
-        d = raw_input("Press enter to continue")
-        return True
-    return False
 
 # look for doc - if missing, put in list to print later
 def look_for_doc(doc_path, missing_doc):
@@ -78,31 +66,13 @@ def start_detection(options):
     cpt_proc, cpt_rel = 0, 0
     output_dic, resources = {}, {}
     missing_docs = []
-    is_skipped = False
   
     print "\n Processing %s documents\n"%str(len(corpus_to_process))
   
     for id_file, infos in corpus_to_process.iteritems(): 
         infos["document_path"] = check_abs_path(infos["document_path"], options.corpus)
 
-    # seriously though, I don't even know why this part exists and why it is writen like this 
-    # so confusing
-
-    #if os.path.exists(infos["document_path"])==False:
-    #  abs_path = os.path.dirname(os.path.abspath(options.corpus))+"/"
-    #  if os.path.exists(abs_path + infos["document_path"])==False:
-    #    not_found.append(infos["document_path"])
-    # ???????????????????????????
-    #    if has_not_found==False:
-    #      print "Not found : ",infos["document_path"]
-    #      print "Not found either: ",abs_path+infos["document_path"]
-    #      print "  -> the next not found files will be ignored"
-    #      d = raw_input("Press enter to continue")
-    #      has_not_found = True
-    # ???????????????????????????
-
         if not look_for_doc(infos["document_path"], missing_docs):
-            is_skipped = skip_missing_doc(is_skipped, infos["document_path"])
             continue
     
         cpt_proc += 1
@@ -113,7 +83,7 @@ def start_detection(options):
             del output_dic[id_file]["annotations"]# for evaluation
     
         infos = prepare_infos(infos, options)
-    
+
         if options.verbose:
             print infos
 
