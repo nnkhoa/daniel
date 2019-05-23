@@ -1,4 +1,3 @@
-from daniel import process
 import glob
 import sys
 import json
@@ -6,7 +5,7 @@ import os
 import time
 import codecs
 from tools import *
-from daniel import get_ressource, process_results
+from daniel import process, get_resource, process_results
 
 # TODO: write test for these functions
 
@@ -88,7 +87,7 @@ def start_detection(options):
             print infos
 
         if infos["language"]  not in resources:
-            resources[infos["language"]] = get_ressource(infos["language"], options)
+            resources[infos["language"]] = get_resource(infos["language"], options)
     
         results = info_process(infos, resources)
         verbose_result(infos, results)
