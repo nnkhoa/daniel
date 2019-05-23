@@ -125,6 +125,7 @@ def zoning(string, options):
     if len(z)<3:#insufficient paragraph/linebreaks structure
         sentences = re.split("\. |\</p>", string)
         sentences = [x for x in sentences if len(x)>2]
+        
         if len(sentences)<5:#very short article
             z = [string]
         elif len(z)==2:#Title may have been extracted
@@ -134,7 +135,7 @@ def zoning(string, options):
             part = int(len(string)/3)
             z = [string[:part], string[part:part*2], string[part*2:]] 
   
-    if options.debug ==True:
+    if options.debug:
         for zone in z:
             print re.sub("\n", "--",zone[:70])
             print("")
@@ -142,42 +143,48 @@ def zoning(string, options):
   
     return z
 
-def get_implicit_location(ressource, options):
-    loc = ressource["locations"]["default_value"]
+def get_implicit_location(resource, options):
+    loc = resource["locations"]["default_value"]
     
     try:
         source = options.source
-        if source in ressource["sources"]:
-            loc = ressource["sources"][source]
+        if source in resource["sources"]:
+            loc = resource["sources"][source]
     except:
         pass
     
     return loc
 
-def analyze(string, ressource, options): 
+def analyze(string, resource, options): 
     zones = zoning(string, options)
-    dis_infos = get_desc(zones, ressource["diseases"])
+    dis_infos = get_desc(zones, resource["diseases"])
     
-    if options.debug:
-        for res in dis_infos[:10]:
+    if options.verbose:
+        print "Top 5 name entitiesi for diseases: "
+        for res in dis_infos[:5]:
             print "  ",round(res[0], 2)," \t", res[1], "\t", res[2]
-        d = raw_input(" first 10 entities displayed, proceed to next step ?")
+        # d = raw_input(" first 10 entities displayed, proceed to next step ?")
     
-    events = []
-    loc_infos = []
     
-    if len(dis_infos) > 0:
-        loc_infos = get_desc(zones, ressource["locations"], True)
+    if len(dis_infos) <= 0:
+        return {"events":[], "dis_infos":dis_infos, "loc_infos":[]}
+    else:
+        events = []
+        loc_infos = []
+
+        loc_infos = get_desc(zones, resource["locations"], True)
         
-        if options.debug:
-            print loc_infos[:10]
+        if options.verbose:
+            print "Top 5 name entities for locations: "
+            for res in loc_infos[:5]:
+                print "  ",round(res[0], 2)," \t", res[1], "\t", res[2]
 
         if len(loc_infos) == 0 or loc_infos[0][0] < 0.5:
-            loc =  get_implicit_location(ressource, options)
+            loc =  get_implicit_location(resource, options)
         else:
             loc = loc_infos[0][1]
         
-        town_infos = get_desc(zones, ressource["towns"], True)
+        town_infos = get_desc(zones, resource["towns"], True)
         
         if len(town_infos) > 0:
             for t in town_infos:
@@ -188,9 +195,9 @@ def analyze(string, ressource, options):
         for dis in dis_infos[:1]:
             events.append([dis[1], loc])
     
-    dic_out = {"events":events, "dis_infos":dis_infos, "loc_infos":loc_infos}
+        return {"events":events, "dis_infos":dis_infos, "loc_infos":loc_infos}
     
-    return dic_out
+    # return dic_out
 
 def get_towns(path):
     liste = eval(open_utf8(path))
@@ -201,17 +208,17 @@ def get_towns(path):
     
     return dic
 
-def get_ressource(lg, o):
+def get_resource(lg, o):
     dic = {}
     mandatory_rsc = ["diseases", "locations"]
     for rsc_type in ["diseases", "locations", "sources"]:
-        path = "ressources/%s_%s.json"%(rsc_type, lg)
-        if os.path.exists(path)==True:
+        path = "resources/%s_%s.json"%(rsc_type, lg)
+        if os.path.exists(path):
             try:
                 dic[rsc_type] = eval(open_utf8(path))
             except Exception as e:
                 if rsc_type in mandatory_rsc:
-                    print "\n  Problem with ressource %s :"%path
+                    print "\n  Problem with resource %s :"%path
                     print e
                     exit()
                 else:
@@ -222,11 +229,11 @@ def get_ressource(lg, o):
                 exit()
     
     try:
-        path_towns= "ressources/towns_%s.json"%lg
+        path_towns= "resources/towns_%s.json"%lg
         dic["towns"] = get_towns(path_towns)
     except:
-        if o.debug==True:
-            print "  Non mandatory ressource '%s' not found"%path_towns
+        if o.debug:
+            print "  Non mandatory resource '%s' not found"%path_towns
         dic["towns"]={}
     
     return dic
@@ -241,7 +248,7 @@ def write_utf8(path, content):
         w.write(content)
 
 def translate_justext():#TODO: with big corpus, getting it only once
-    dic= eval(open_utf8("ressources/language_codes.json"))
+    dic = eval(open_utf8("resources/language_codes.json"))
     return dic
 
 def get_lg_JT(lg_iso):
@@ -254,7 +261,7 @@ def get_lg_JT(lg_iso):
     return lg
 
 def get_clean_html(o, lg_JT):
-    if o.is_clean == True:
+    if o.is_clean:
         return open_utf8(o.document_path)
     
     try:
@@ -278,7 +285,7 @@ def get_clean_html(o, lg_JT):
     
     return out
   
-def process(o, ressource = False, filtered=True, process_res = True, string = False):
+def process(o, resource = False, filtered=True, process_res = True, string = False):
     try:
         lg_iso = o.language
     except:
@@ -288,10 +295,10 @@ def process(o, ressource = False, filtered=True, process_res = True, string = Fa
     if not string:
         string = get_clean_html(o, lg_JT)
     
-    if not ressource:
-      ressource = get_ressource(lg_iso, o)
+    if not resource:
+      resource = get_resource(lg_iso, o)
     
-    results = analyze(string, ressource, o)
+    results = analyze(string, resource, o)
     
     if filtered:
         results["dis_infos"] = [x for x in results["dis_infos"] if x[0]>=o.ratio]
@@ -307,9 +314,12 @@ def process(o, ressource = False, filtered=True, process_res = True, string = Fa
     
     return results
 
+def check_result(result_size, largest_ratio, threshold_ratio):
+    return result_size > 0 and largest_ratio >= threshold_ratio
+
 def process_results(results, options):
     ratio = float(options.ratio)
-    descriptions = eval(open_utf8("ressources/descriptions.json"))
+    descriptions = eval(open_utf8("resources/descriptions.json"))
     
     if options.debug:
         print "-"*10, "RESULTS", "-"*10
@@ -317,37 +327,34 @@ def process_results(results, options):
         
         for event in results["events"]:
             print("  "+" ".join(event))
-    
+        print " "
+
     if "dis_infos" not in results:
         return
     
     res_filtered = {}
-    
-    if len(results["dis_infos"])>0:
-        if results["dis_infos"][0][0]>=options.ratio:
-            for info in ["dis_infos", "loc_infos"]:
-                res_filtered[info] = []
-                for elems in results[info]:
-                    if elems[0]<options.ratio:
-                        break
+
+    if check_result(len(results["dis_infos"]), results["dis_infos"][0][0], options.ratio):
+        for info in ["dis_infos", "loc_infos"]:
+            res_filtered[info] = []
+            for elems in results[info]:
+                if elems[0] < options.ratio:
+                    break
                     
-                    res_filtered[info].append(elems)
+                res_filtered[info].append(elems)
                     
-                    if options.verbose==True or options.showrelevant==True:
-                        print options.document_path
-                        print(descriptions[info])
-                        print(eval(str(elems)))
-                        print("")
+                if options.verbose or options.showrelevant:
+                    print options.document_path
+                    print descriptions[info]
+                    print eval(str(elems))
+                    print ""
             
-            print("-"*10)
-    
+        print("-"*10)
+
     write_utf8(options.name_out, json.dumps(res_filtered))
 
-#  if options.verbose==True:
-#    print "-"*30
-
 if __name__=="__main__":
-  options = get_args()
-  try: os.makedirs("tmp")
-  except: pass
-  results = process(options, ressource = False, filtered = False, process_res=True)
+    options = get_args()
+    try: os.makedirs("tmp")
+    except: pass
+    results = process(options, resource = False, filtered = False, process_res=True)
