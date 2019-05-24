@@ -284,7 +284,10 @@ def get_clean_html(o, lg_JT):
         out = open_utf8(o.document_path)
     
     return out
-  
+ 
+def exist_disease(disease_info):
+    return len(disease_info)
+
 def process(o, resource = False, filtered=True, process_res = True, string = False):
     try:
         lg_iso = o.language
@@ -304,7 +307,7 @@ def process(o, resource = False, filtered=True, process_res = True, string = Fal
         results["dis_infos"] = [x for x in results["dis_infos"] if x[0]>=o.ratio]
         results["loc_infos"] = [x for x in results["loc_infos"] if x[0]>=o.ratio]
         
-        if len(results["dis_infos"]) == 0:
+        if not exist_disease(result["dis_infos"]):
             return {"events":[["N", "N", "N"]]}
         
         return results
@@ -314,7 +317,7 @@ def process(o, resource = False, filtered=True, process_res = True, string = Fal
     
     return results
 
-def check_result(result_size, largest_ratio, threshold_ratio):
+def valid_result(result_size, largest_ratio, threshold_ratio):
     return result_size > 0 and largest_ratio >= threshold_ratio
 
 def process_results(results, options):
@@ -334,7 +337,7 @@ def process_results(results, options):
     
     res_filtered = {}
 
-    if check_result(len(results["dis_infos"]), results["dis_infos"][0][0], options.ratio):
+    if valid_result(len(results["dis_infos"]), results["dis_infos"][0][0], options.ratio):
         for info in ["dis_infos", "loc_infos"]:
             res_filtered[info] = []
             for elems in results[info]:
