@@ -37,20 +37,20 @@ def check_weak_and_repeat(weak_struct, s_occur):
 def exploit_rstr(r,rstr, set_id_text):
     desc = []
     weak_struct = check_weak_struct(len(set_id_text))
-  
+
     for (offset_end, nb), (l, start_plage) in r.iteritems():
         ss = rstr.global_suffix[offset_end-l:offset_end]
         s_occur = set()
-    
+
         for o in xrange(start_plage, start_plage+nb) :
             # id_str = rstr.idxString[rstr.res[o]]
             s_occur.add(rstr.idxString[rstr.res[o]])
-    
+
             inter = s_occur.intersection(set_id_text)
 
             has_inter = check_inter(inter, s_occur)
             weak_and_repeat = check_weak_and_repeat(weak_struct, s_occur) #needs to be in 1st paragraph
-    
+
         # ????
         if has_inter or weak_and_repeat: 
             NE_ids=[x-len(set_id_text) for x in s_occur.difference(set_id_text)]
@@ -80,7 +80,7 @@ def filter_desc(desc, l_rsc, loc=False):
         for id_dis in dis_list:
             entity_name = l_rsc[id_dis].decode("utf-8")
             ratio = float(len(ss))/len(entity_name)
-            
+
             if ss[0].lower() != entity_name[0].lower():
                 if loc:
                     #for country names the first character should not change
@@ -88,10 +88,10 @@ def filter_desc(desc, l_rsc, loc=False):
                 else:
                     if len(entity_name) < 6 and ratio < 1:
                         ratio = max(0, ratio-0.1)#penalty
-            
+
             score = get_score(ratio, distances)
             out.append([score, entity_name, ss, distances])
-    
+
     return sorted(out,reverse=True)
 
 def get_desc(string, rsc, loc = False):
@@ -99,19 +99,19 @@ def get_desc(string, rsc, loc = False):
     rstr = Rstr_max()
     cpt = 0
     l_rsc = rsc.keys()
-    
+
     for s in string:
         rstr.add_str(s)
         set_id_text.add(cpt)
         cpt+=1
-    
+
     for r in l_rsc:
         rstr.add_str(r.decode("utf-8"))
-    
+
     r = rstr.go() # ???? should name different perhap
     desc = exploit_rstr(r,rstr, set_id_text)
     # res = filter_desc(desc, l_rsc, loc)
-    
+
     return filter_desc(desc, l_rsc, loc)
 
 def zoning(string, options):
@@ -119,13 +119,13 @@ def zoning(string, options):
 
     if len(z)==1:
         z = re.split("\n", string)
-  
+
     z = [x for x in z if x!=""]
-  
+
     if len(z)<3:#insufficient paragraph/linebreaks structure
         sentences = re.split("\. |\</p>", string)
         sentences = [x for x in sentences if len(x)>2]
-        
+
         if len(sentences)<5:#very short article
             z = [string]
         elif len(z)==2:#Title may have been extracted
@@ -134,38 +134,38 @@ def zoning(string, options):
         else:#No usable structure
             part = int(len(string)/3)
             z = [string[:part], string[part:part*2], string[part*2:]] 
-  
+
     if options.debug:
         for zone in z:
             print re.sub("\n", "--",zone[:70])
             print("")
         d = raw_input("Zoning ended, proceed to next step ?")
-  
+
     return z
 
 def get_implicit_location(resource, options):
     loc = resource["locations"]["default_value"]
-    
+
     try:
         source = options.source
         if source in resource["sources"]:
             loc = resource["sources"][source]
     except:
         pass
-    
+
     return loc
 
 def analyze(string, resource, options): 
     zones = zoning(string, options)
     dis_infos = get_desc(zones, resource["diseases"])
-    
+
     if options.verbose:
         print "Top 5 name entitiesi for diseases: "
         for res in dis_infos[:5]:
             print "  ",round(res[0], 2)," \t", res[1], "\t", res[2]
         # d = raw_input(" first 10 entities displayed, proceed to next step ?")
-    
-    
+
+
     if len(dis_infos) <= 0:
         return {"events":[], "dis_infos":dis_infos, "loc_infos":[]}
     else:
@@ -173,7 +173,7 @@ def analyze(string, resource, options):
         loc_infos = []
 
         loc_infos = get_desc(zones, resource["locations"], True)
-        
+
         if options.verbose:
             print "Top 5 name entities for locations: "
             for res in loc_infos[:5]:
@@ -183,20 +183,20 @@ def analyze(string, resource, options):
             loc =  get_implicit_location(resource, options)
         else:
             loc = loc_infos[0][1]
-        
+
         town_infos = get_desc(zones, resource["towns"], True)
-        
+
         if len(town_infos) > 0:
             for t in town_infos:
                 if t[0] < options.ratio:
                     break
                 loc.append((t[1], t[0]))
-        
+
         for dis in dis_infos[:1]:
             events.append([dis[1], loc])
-    
+
         return {"events":events, "dis_infos":dis_infos, "loc_infos":loc_infos}
-    
+
     # return dic_out
 
 def get_towns(path):
@@ -205,7 +205,7 @@ def get_towns(path):
 
     for town, pop, region in liste:
         dic[town] = [pop, region]
-    
+
     return dic
 
 def get_resource(lg, o):
@@ -227,7 +227,7 @@ def get_resource(lg, o):
             if rsc_type in mandatory_rsc:
                 print "  Ressource '%s' not found\n ->exiting"%path
                 exit()
-    
+
     try:
         path_towns= "resources/towns_%s.json"%lg
         dic["towns"] = get_towns(path_towns)
@@ -235,7 +235,7 @@ def get_resource(lg, o):
         if o.debug:
             print "  Non mandatory resource '%s' not found"%path_towns
         dic["towns"]={}
-    
+
     return dic
 
 def open_utf8(path):
@@ -254,16 +254,16 @@ def translate_justext():#TODO: with big corpus, getting it only once
 def get_lg_JT(lg_iso):
     dic_lg = translate_justext()
     lg = "unknown"
-    
+
     if lg_iso in dic_lg:
         lg = dic_lg[lg_iso]
-    
+
     return lg
 
 def get_clean_html(o, lg_JT):
     if o.is_clean:
         return open_utf8(o.document_path)
-    
+
     try:
         import justext
         text = open_utf8(o.document_path)
@@ -273,20 +273,30 @@ def get_clean_html(o, lg_JT):
         for paragraph in paragraphs:
             if not paragraph.is_boilerplate:
                 out+="<p>%s</p>\n"%paragraph.text
-        
+
         if o.verbose:
             print "-> Document cleaned"
     except Exception as e:
         if o.verbose:
             print e
             print "** Probably Justext is missing, do 'pip install justext'"
-        
+
         out = open_utf8(o.document_path)
-    
+
     return out
- 
+
 def exist_disease(disease_info):
     return len(disease_info)
+
+def result_filtering(results, ratio):
+    for attr in ["dis_infos", "loc_infos"]:
+        # TODO is there a better way?
+        results[attr] = [x for x in results[attr] if x[0] >= ratio]
+
+    if not exist_disease(result["dis_info"]):
+        return {"events": [["N", "N", "N"]]}
+
+    return results
 
 def process(o, resource = False, filtered=True, process_res = True, string = False):
     try:
@@ -294,65 +304,63 @@ def process(o, resource = False, filtered=True, process_res = True, string = Fal
     except:
         lg_iso="unknown"
     lg_JT = get_lg_JT(lg_iso)
-    
+
     if not string:
         string = get_clean_html(o, lg_JT)
-    
+
     if not resource:
-      resource = get_resource(lg_iso, o)
-    
+        resource = get_resource(lg_iso, o)
+
     results = analyze(string, resource, o)
-    
+
     if filtered:
-        results["dis_infos"] = [x for x in results["dis_infos"] if x[0]>=o.ratio]
-        results["loc_infos"] = [x for x in results["loc_infos"] if x[0]>=o.ratio]
-        
-        if not exist_disease(result["dis_infos"]):
-            return {"events":[["N", "N", "N"]]}
-        
-        return results
+        return result_filtering(results, o.ratio)
 
     if process_res:
         process_results(results, options)
-    
+
     return results
 
 def valid_result(result_size, largest_ratio, threshold_ratio):
     return result_size > 0 and largest_ratio >= threshold_ratio
 
+def print_final_result(options, results, descriptions):
+    print options.document_path
+    for info in ["dis_infos", "loc_infos"]:
+        if len(results[info]) > 0:
+            print descriptions[info]
+            for elem in results[info]:
+                print elem
+            print ""
+    print "\n"
+
 def process_results(results, options):
     ratio = float(options.ratio)
     descriptions = eval(open_utf8("resources/descriptions.json"))
-    
+
     if options.debug:
         print "-"*10, "RESULTS", "-"*10
         print(descriptions["events"])
-        
+
         for event in results["events"]:
             print("  "+" ".join(event))
         print " "
 
     if "dis_infos" not in results:
         return
-    
-    res_filtered = {}
 
+    res_filtered = {}
+    # TODO this is still very messy, clean it up
     if valid_result(len(results["dis_infos"]), results["dis_infos"][0][0], options.ratio):
         for info in ["dis_infos", "loc_infos"]:
             res_filtered[info] = []
             for elems in results[info]:
                 if elems[0] < options.ratio:
                     break
-                    
                 res_filtered[info].append(elems)
-                    
-                if options.verbose or options.showrelevant:
-                    print options.document_path
-                    print descriptions[info]
-                    print eval(str(elems))
-                    print ""
-            
-        print("-"*10)
+
+    if options.verbose or options.showrelevant:
+        print_final_result(options, res_filtered, descriptions)
 
     write_utf8(options.name_out, json.dumps(res_filtered))
 
