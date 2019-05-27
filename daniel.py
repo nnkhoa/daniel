@@ -110,7 +110,6 @@ def get_desc(string, rsc, loc = False):
 
     r = rstr.go() # ???? should name different perhap
     desc = exploit_rstr(r,rstr, set_id_text)
-    # res = filter_desc(desc, l_rsc, loc)
 
     return filter_desc(desc, l_rsc, loc)
 
@@ -160,7 +159,7 @@ def analyze(string, resource, options):
     dis_infos = get_desc(zones, resource["diseases"])
 
     if options.verbose:
-        print "Top 5 name entitiesi for diseases: "
+        print "Top 5 name entities for diseases: "
         for res in dis_infos[:5]:
             print "  ",round(res[0], 2)," \t", res[1], "\t", res[2]
         # d = raw_input(" first 10 entities displayed, proceed to next step ?")
@@ -196,8 +195,6 @@ def analyze(string, resource, options):
             events.append([dis[1], loc])
 
         return {"events":events, "dis_infos":dis_infos, "loc_infos":loc_infos}
-
-    # return dic_out
 
 def get_towns(path):
     liste = eval(open_utf8(path))
@@ -303,10 +300,10 @@ def process(o, resource = False, filtered=True, process_res = True, string = Fal
         lg_iso = o.language
     except:
         lg_iso="unknown"
-    lg_JT = get_lg_JT(lg_iso)
+    # lg_JT = get_lg_JT(lg_iso)
 
     if not string:
-        string = get_clean_html(o, lg_JT)
+        string = get_clean_html(o, get_lg_JT(lg_iso))
 
     if not resource:
         resource = get_resource(lg_iso, o)
@@ -332,7 +329,18 @@ def print_final_result(options, results, descriptions):
             for elem in results[info]:
                 print elem
             print ""
-    print "\n"
+    # print "\n"
+
+def get_final_result(results, ratio):
+    res_final = {}
+    for info in ["dis_infos", "loc_infos"]:
+        res_final[info] = []
+        for elems in results[info]:
+            if elems[0] < ratio:
+                break
+            res_final[info].append(elems)
+
+    return res_final
 
 def process_results(results, options):
     ratio = float(options.ratio)
@@ -350,19 +358,15 @@ def process_results(results, options):
         return
 
     res_filtered = {}
-    # TODO this is still very messy, clean it up
+    
     if valid_result(len(results["dis_infos"]), results["dis_infos"][0][0], options.ratio):
-        for info in ["dis_infos", "loc_infos"]:
-            res_filtered[info] = []
-            for elems in results[info]:
-                if elems[0] < options.ratio:
-                    break
-                res_filtered[info].append(elems)
+        res_filtered = get_final_result(results, options.ratio)
 
     if options.verbose or options.showrelevant:
         print_final_result(options, res_filtered, descriptions)
 
     write_utf8(options.name_out, json.dumps(res_filtered))
+
 
 if __name__=="__main__":
     options = get_args()
