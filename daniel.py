@@ -12,52 +12,43 @@ from rstr_max import *
 import os
 from tools import *
 import json
+import time
 
 # ???
 def get_normalized_pos(ss, text):
-    # s = re.escape(ss)
     l_dist = [m.start() for m in re.finditer(re.escape(ss), text)]
     l_dist = [min(x, len(text)-x) for x in l_dist]
     return [float(x)/len(text) for x in l_dist]
 # ???
 
-# if paragraph structuration is weak
-def check_weak_struct(id_length):
-    return id_length == 1
-
-def check_inter(inter, s_occur):
-    condition1 = len(inter) > 1
-    condition2 = len(s_occur) > len(inter)
-    return (condition1 and condition2)
-
-def check_weak_and_repeat(weak_struct, s_occur):
-    condition = 0 in s_occur
-    return (weak_struct and condition)
-
 def exploit_rstr(r,rstr, set_id_text):
     desc = []
-    weak_struct = check_weak_struct(len(set_id_text))
+    # if paragraph structure is weak
+    weak_struct = len(set_id_text) == 1
 
     for (offset_end, nb), (l, start_plage) in r.iteritems():
         ss = rstr.global_suffix[offset_end-l:offset_end]
         s_occur = set()
 
         for o in xrange(start_plage, start_plage+nb) :
-            # id_str = rstr.idxString[rstr.res[o]]
             s_occur.add(rstr.idxString[rstr.res[o]])
 
             inter = s_occur.intersection(set_id_text)
+            
+            # what is has inter???
+            has_inter = (len(inter > 1) and len(s_occur) > len(inter))
 
-            has_inter = check_inter(inter, s_occur)
-            weak_and_repeat = check_weak_and_repeat(weak_struct, s_occur) #needs to be in 1st paragraph
+            weak_and_repeat = (weak_struct and 0 in s_occur) #needs to be in 1st paragraph
 
         # ????
         if has_inter or weak_and_repeat: 
-            NE_ids=[x-len(set_id_text) for x in s_occur.difference(set_id_text)]
-            if len(inter)>1:
-                l_dist = [min(pos, len(set_id_text)-pos-1) for pos in inter]
+            NE_ids=[x - len(set_id_text) for x in s_occur.difference(set_id_text)]
+            
+            if len(inter) > 1:
+                l_dist = [min(pos, len(set_id_text) - pos - 1) for pos in inter]
             else:
                 l_dist = get_normalized_pos(ss, rstr.global_suffix)
+            
             l_dist = [round(x, 5) for x in l_dist]
             desc.append([ss, NE_ids, sorted(l_dist)])
         # ????
@@ -65,11 +56,11 @@ def exploit_rstr(r,rstr, set_id_text):
     return desc
 
 def get_score(ratio, dist):
-    if ratio ==1:
+    if ratio == 1:
         ratio = 0.99
-    if dist[0]==1:
+    if dist[0] == 1:
         return ratio
-    elif dist[1]<=1:
+    elif dist[1] <= 1:
         return pow(ratio, 1+dist[0]*dist[1])
     else:
         return pow(ratio, 1+dist[0]*math.log(dist[1]))
@@ -154,47 +145,50 @@ def get_implicit_location(resource, options):
 
     return loc
 
+def print_top5(res):
+    for elem in res[:5]:
+        print "  ",round(elem[0], 2)," \t", elem[1], "\t", elem[2]
+
+# TODO find a better way to write this
+def get_town(town_infos, loc, ratio):
+    if town_infos:
+        for town in town_infos:
+            if town[0] < ratio:
+                break
+            loc.append((town[1], town[0]))
+
+def get_event(dis_infos, loc):
+    return [(dis[1],loc) for dis in dis_infos[:1] if dis_infos]
+
 def analyze(string, resource, options): 
     zones = zoning(string, options)
     dis_infos = get_desc(zones, resource["diseases"])
 
+    if len(dis_infos) <= 0:
+        # print "No infos on diseases"
+        return {"events":[], "dis_infos":dis_infos, "loc_infos":[]}
+
+    loc_infos = get_desc(zones, resource["locations"], True)
+
     if options.verbose:
         print "Top 5 name entities for diseases: "
-        for res in dis_infos[:5]:
-            print "  ",round(res[0], 2)," \t", res[1], "\t", res[2]
-        # d = raw_input(" first 10 entities displayed, proceed to next step ?")
+        print_top5(dis_infos)
 
+        print "Top 5 name entities for locations: "
+        print_top5(loc_infos)
 
-    if len(dis_infos) <= 0:
-        return {"events":[], "dis_infos":dis_infos, "loc_infos":[]}
+    if len(loc_infos) == 0 or loc_infos[0][0] < 0.5:
+        loc =  get_implicit_location(resource, options)
     else:
-        events = []
-        loc_infos = []
+        loc = loc_infos[0][1]
 
-        loc_infos = get_desc(zones, resource["locations"], True)
+    town_infos = get_desc(zones, resource["towns"], True)
 
-        if options.verbose:
-            print "Top 5 name entities for locations: "
-            for res in loc_infos[:5]:
-                print "  ",round(res[0], 2)," \t", res[1], "\t", res[2]
+    get_town(town_infos, loc, options.ratio)
 
-        if len(loc_infos) == 0 or loc_infos[0][0] < 0.5:
-            loc =  get_implicit_location(resource, options)
-        else:
-            loc = loc_infos[0][1]
+    events = get_event(dis_infos, loc)
 
-        town_infos = get_desc(zones, resource["towns"], True)
-
-        if len(town_infos) > 0:
-            for t in town_infos:
-                if t[0] < options.ratio:
-                    break
-                loc.append((t[1], t[0]))
-
-        for dis in dis_infos[:1]:
-            events.append([dis[1], loc])
-
-        return {"events":events, "dis_infos":dis_infos, "loc_infos":loc_infos}
+    return {"events":events, "dis_infos":dis_infos, "loc_infos":loc_infos}
 
 def get_towns(path):
     liste = eval(open_utf8(path))
@@ -290,7 +284,7 @@ def result_filtering(results, ratio):
         # TODO is there a better way?
         results[attr] = [x for x in results[attr] if x[0] >= ratio]
 
-    if not exist_disease(result["dis_info"]):
+    if not exist_disease(results["dis_infos"]):
         return {"events": [["N", "N", "N"]]}
 
     return results
@@ -300,7 +294,6 @@ def process(o, resource = False, filtered=True, process_res = True, string = Fal
         lg_iso = o.language
     except:
         lg_iso="unknown"
-    # lg_JT = get_lg_JT(lg_iso)
 
     if not string:
         string = get_clean_html(o, get_lg_JT(lg_iso))
@@ -329,7 +322,6 @@ def print_final_result(options, results, descriptions):
             for elem in results[info]:
                 print elem
             print ""
-    # print "\n"
 
 def get_final_result(results, ratio):
     res_final = {}
@@ -358,7 +350,7 @@ def process_results(results, options):
         return
 
     res_filtered = {}
-    
+
     if valid_result(len(results["dis_infos"]), results["dis_infos"][0][0], options.ratio):
         res_filtered = get_final_result(results, options.ratio)
 
@@ -372,4 +364,7 @@ if __name__=="__main__":
     options = get_args()
     try: os.makedirs("tmp")
     except: pass
+    start = time.clock() 
     results = process(options, resource = False, filtered = False, process_res=True)
+    end = time.clock()
+    print "Time Elapse: ", round(end - start, 4)
