@@ -36,7 +36,7 @@ def exploit_rstr(r,rstr, set_id_text):
             inter = s_occur.intersection(set_id_text)
             
             # what is has inter???
-            has_inter = (len(inter > 1) and len(s_occur) > len(inter))
+            has_inter = (len(inter) > 1 and len(s_occur) > len(inter))
 
             weak_and_repeat = (weak_struct and 0 in s_occur) #needs to be in 1st paragraph
 
