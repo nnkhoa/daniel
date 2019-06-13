@@ -1,4 +1,5 @@
 *.pyc
+*.out
 dataset/
 *.results
 rstr_max/__pycache__/
